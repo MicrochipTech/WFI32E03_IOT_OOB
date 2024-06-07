@@ -1,0 +1,264 @@
+/*******************************************************************************
+  Resets (Power) PLIB
+
+  Company
+    Microchip Technology Inc.
+
+  File Name
+    plib_power.c
+
+  Summary
+    Power PLIB Implementation File.
+
+  Description
+    This file defines the interface to the DSCTRL peripheral library.
+    This library provides access to and control of the associated Resets.
+
+  Remarks:
+    None.
+
+*******************************************************************************/
+
+// DOM-IGNORE-BEGIN
+/*******************************************************************************
+* Copyright (C) 2019 Microchip Technology Inc. and its subsidiaries.
+*
+* Subject to your compliance with these terms, you may use Microchip software
+* and any derivatives exclusively with Microchip products. It is your
+* responsibility to comply with third party license terms applicable to your
+* use of third party software (including open source software) that may
+* accompany Microchip software.
+*
+* THIS SOFTWARE IS SUPPLIED BY MICROCHIP "AS IS". NO WARRANTIES, WHETHER
+* EXPRESS, IMPLIED OR STATUTORY, APPLY TO THIS SOFTWARE, INCLUDING ANY IMPLIED
+* WARRANTIES OF NON-INFRINGEMENT, MERCHANTABILITY, AND FITNESS FOR A
+* PARTICULAR PURPOSE.
+*
+* IN NO EVENT WILL MICROCHIP BE LIABLE FOR ANY INDIRECT, SPECIAL, PUNITIVE,
+* INCIDENTAL OR CONSEQUENTIAL LOSS, DAMAGE, COST OR EXPENSE OF ANY KIND
+* WHATSOEVER RELATED TO THE SOFTWARE, HOWEVER SOURCED, EVEN IF MICROCHIP HAS
+* BEEN ADVISED OF THE POSSIBILITY OR THE DAMAGES ARE FORESEEABLE. TO THE
+* FULLEST EXTENT ALLOWED BY LAW, MICROCHIP'S TOTAL LIABILITY ON ALL CLAIMS IN
+* ANY WAY RELATED TO THIS SOFTWARE WILL NOT EXCEED THE AMOUNT OF FEES, IF ANY,
+* THAT YOU HAVE PAID DIRECTLY TO MICROCHIP FOR THIS SOFTWARE.
+*******************************************************************************/
+// DOM-IGNORE-END
+
+// *****************************************************************************
+// *****************************************************************************
+// Section: Included Files
+// *****************************************************************************
+// *****************************************************************************
+
+#include "plib_power.h"
+
+#define WAIT asm volatile("wait")
+// *****************************************************************************
+// *****************************************************************************
+// Section: Power Implementation
+// *****************************************************************************
+// *****************************************************************************
+void POWER_Initialize( void )
+{
+    /* Unlock system */
+    SYSKEY = 0x00000000U;
+    SYSKEY = 0xAA996655U;
+    SYSKEY = 0x556699AAU;
+
+    DSCON = 0x2000U;
+    DSCON = 0x2000U;
+
+    /* Lock system */
+    SYSKEY = 0;
+}
+void POWER_LowPowerModeEnter (POWER_LOW_POWER_MODE mode)
+{
+    bool check = false;
+    /* Unlock system */
+    SYSKEY = 0x00000000U;
+    SYSKEY = 0xAA996655U;
+    SYSKEY = 0x556699AAU;
+
+    switch(mode)
+    {
+        case LOW_POWER_IDLE_MODE:
+                        OSCCONCLR = _OSCCON_SLPEN_MASK;
+                        break;
+        case LOW_POWER_SLEEP_MODE:
+                        OSCCONSET = _OSCCON_SLPEN_MASK;
+                        break;
+        case LOW_POWER_DREAM_MODE:
+                        OSCCONSET = _OSCCON_SLPEN_MASK | _OSCCON_DRMEN_MASK;
+                        break;
+        case LOW_POWER_DEEP_SLEEP_MODE:
+                        OSCCONSET = _OSCCON_SLPEN_MASK;
+                        DSCONbits.DSEN = 1;
+                        DSCONbits.DSEN = 1;
+                        break;
+        case LOW_POWER_EXTREME_DEEP_SLEEP_MODE:
+                        DSCONbits.DSGPREN = 0; // Disable DSGPR 1-32
+                        DSCONbits.DSGPREN = 0;
+                        DSCONbits.RTCDIS = 1; // Disable RTCC
+                        DSCONbits.RTCDIS = 1;
+                        DSCONbits.RTCCWDIS = 1; // Disable wake up from RTCC
+                        DSCONbits.RTCCWDIS = 1;
+
+                        CFGCON4bits.DSWDTEN = 0; // Disable DSWDT
+
+                        OSCCONSET = _OSCCON_SLPEN_MASK;
+                        DSCONbits.DSEN = 1;
+                        DSCONbits.DSEN = 1;
+                        break;
+        default:
+                        check = true;
+                        break;
+    }
+    
+    if(check == true)
+    {
+        return;
+    }
+
+    /* Lock system */
+    SYSKEY = 0x0;
+
+    /* enter into selected low power mode */
+    WAIT;
+}
+
+POWER_DS_WAKEUP_SOURCE POWER_DS_WakeupSourceGet( void )
+{
+    return (POWER_DS_WAKEUP_SOURCE)(DSWAKE);
+}
+
+void POWER_DS_ReleaseGPIO(void)
+{
+    /* Unlock system */
+    SYSKEY = 0x00000000U;
+    SYSKEY = 0xAA996655U;
+    SYSKEY = 0x556699AAU;
+
+    DSCONbits.RELEASE = 0;
+    DSCONbits.RELEASE = 0;
+
+    /* Lock system */
+    SYSKEY = 0;
+}
+
+void POWER_DS_WakeupSourceClear( POWER_DS_WAKEUP_SOURCE wakeupSource )
+{
+    DSWAKE &= ~((uint32_t)wakeupSource);
+}
+
+void POWER_DS_GPR_Enable(void)
+{
+    /* Unlock system */
+    SYSKEY = 0x00000000U;
+    SYSKEY = 0xAA996655U;
+    SYSKEY = 0x556699AAU;
+
+    DSCONbits.DSGPREN = 1;
+    DSCONbits.DSGPREN = 1;
+
+    /* Lock system */
+    SYSKEY = 0x00000000;
+}
+void POWER_DS_GPR_Disable(void)
+{
+    /* Unlock system */
+    SYSKEY = 0x00000000U;
+    SYSKEY = 0xAA996655U;
+    SYSKEY = 0x556699AAU;
+
+    DSCONbits.DSGPREN = 0;
+    DSCONbits.DSGPREN = 0;
+
+    /* Lock system */
+    SYSKEY = 0x00000000;
+}
+void POWER_DS_RTCC_Enable(void)
+{
+    /* Unlock system */
+    SYSKEY = 0x00000000U;
+    SYSKEY = 0xAA996655U;
+    SYSKEY = 0x556699AAU;
+
+    DSCONbits.RTCDIS = 0;
+    DSCONbits.RTCDIS = 0;
+
+    /* Lock system */
+    SYSKEY = 0x00000000;
+}
+void POWER_DS_RTCC_Disable(void)
+{
+    /* Unlock system */
+    SYSKEY = 0x00000000U;
+    SYSKEY = 0xAA996655U;
+    SYSKEY = 0x556699AAU;
+
+    DSCONbits.RTCDIS = 1;
+    DSCONbits.RTCDIS = 1;
+
+    /* Lock system */
+    SYSKEY = 0x00000000;
+}
+void POWER_DS_RTCC_WakeupEnable(void)
+{
+    /* Unlock system */
+    SYSKEY = 0x00000000U;
+    SYSKEY = 0xAA996655U;
+    SYSKEY = 0x556699AAU;
+
+    DSCONbits.RTCCWDIS = 0;
+    DSCONbits.RTCCWDIS = 0;
+
+    /* Lock system */
+    SYSKEY = 0x00000000;
+}
+void POWER_DS_RTCC_WakeupDisable(void)
+{
+    /* Unlock system */
+    SYSKEY = 0x00000000U;
+    SYSKEY = 0xAA996655U;
+    SYSKEY = 0x556699AAU;
+
+    DSCONbits.RTCCWDIS = 1;
+    DSCONbits.RTCCWDIS = 1;
+
+    /* Lock system */
+    SYSKEY = 0x00000000;
+}
+
+void POWER_DS_GPR_Write(POWER_DS_GPR gprNumb, uint32_t gprValue)
+{
+    /* Unlock system */
+    SYSKEY = 0x00000000U;
+    SYSKEY = 0xAA996655U;
+    SYSKEY = 0x556699AAU;
+
+    if (gprNumb == POWER_DS_GPR0)
+    {
+        DSGPR0 = gprValue;
+        DSGPR0 = gprValue;
+    }
+    else
+    {
+        *((volatile uint32_t *)(&DSGPR1)+ (uint32_t)gprNumb-1) = gprValue;
+        *((volatile uint32_t *)(&DSGPR1)+ (uint32_t)gprNumb-1) = gprValue;
+    }
+
+    /* Lock system */
+    SYSKEY = 0x00000000;
+}
+
+uint32_t POWER_DS_GPR_Read(POWER_DS_GPR gprNumb)
+{
+    if (gprNumb == POWER_DS_GPR0)
+    {
+        return DSGPR0;
+    }
+    else
+    {
+        return (*((volatile uint32_t *)(&DSGPR1)+ (uint32_t)gprNumb-1));
+    }
+}
